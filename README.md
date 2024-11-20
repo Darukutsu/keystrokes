@@ -93,7 +93,7 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 ## Video
 
-[![Watch the video](https://github.com/Darukutsu/keystrokes/blob/master/images/video.mkv)](https://github.com/Darukutsu/keystrokes/blob/master/images/video.mkv)
+[![Watch the video](https://github.com/Darukutsu/keystrokes/blob/master/images/video.webm)](https://github.com/Darukutsu/keystrokes/blob/master/images/video.webm)
 
 ## Alternatives
 
