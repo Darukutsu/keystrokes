@@ -40,9 +40,9 @@ Wayland:
 
 ## Installation
 
-To use put:\
+**To use put:**\
 [`keystrokes`](https://github.com/Darukutsu/keystrokes/blob/master/keystrokes) in `/usr/bin/keystrokes`\
-[`com.github.keystrokes.policy`](https://github.com/Darukutsu/keystrokes/blob/master/com.github.keystrokes.policy) in `/usr/share/polkit-1/rules.d/com.github.keystrokes.policy`
+[`com.github.keystrokes.policy`](https://github.com/Darukutsu/keystrokes/blob/master/com.github.keystrokes.policy) in `/usr/share/polkit-1/rules.d/com.github.keystrokes.policy`\
 [`com.github.keystrokes.rules`](https://github.com/Darukutsu/keystrokes/blob/master/com.github.keystrokes.rules) in `/usr/share/polkit-1/rules.d/com.github.keystrokes.rules`
 
 NOTE: symlinks don't work with polkit
@@ -51,6 +51,8 @@ This tool directly uses `/dev/input/event...`, so using `pkexec` we're getting r
 You can use sudo, doas too.
 
 If you encounter issues when executing your binds via keyboard such as `Refusing to render service to dead parents`, make a wrapper:
+
+## Usage
 
 ```
 Usage: keystrokes [OPTION]...
@@ -91,7 +93,7 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 ## Video
 
-<video src="https://github.com/Darukutsu/keystrokes/blob/master/images/video.mkv" width="640" height="480" controls></video>
+[![Watch the video](https://github.com/Darukutsu/keystrokes/blob/master/images/video.mkv)](https://github.com/Darukutsu/keystrokes/blob/master/images/video.mkv)
 
 ## Alternatives
 
