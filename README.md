@@ -93,7 +93,7 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 ## Video
 
-[!(how it works...)](https://github.com/Darukutsu/keystrokes/blob/master/images/video.mp4)
+[video.webm](https://github.com/user-attachments/assets/f01b3884-f4c3-45fb-809d-88916d6736a6)
 
 ## Alternatives
 
