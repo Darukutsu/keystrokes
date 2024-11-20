@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+<policyconfig>
+  <action id="com.github.keystrokes">
+    <description>Run CLI backend as root to read input devices.</description>
+    <message>pkexec /usr/bin/keystrokes</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <!-- env XDG_SESSION_TYPE="$XDG_SESSION_TYPE" MACRO_SCREENKEY="$MACRO_SCREENKEY" -->
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/keystrokes</annotate>
+    <!--<annotate
+    key="org.freedesktop.policykit.exec.argv1">/usr/bin/keystrokes</annotate>-->
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

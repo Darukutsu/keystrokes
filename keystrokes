@@ -1,0 +1,226 @@
+#!/bin/sh
+#set -x
+
+print_version() {
+  printf "1.0"
+}
+
+print_help() {
+  printf "Usage: keystrokes [OPTION]...
+
+Short options take same arguments as their long counterpart.
+  -h, --help                 display this help and exit
+  -p, --play [NAME]          play macro
+  -r, --record [NAME]        record macro
+  -R, --remove [NAME]        remove recorded macro
+  -s, --stop-record          forcestop recording macro (usefull for scripts)
+  -S, --stop-replay          forcestop playing macro (usefull for scripts)
+  -v, --version              display version and exit
+
+OPTIONS TO USE WITH RECORD
+  -D, --device NAME          pick recording device (either path or descriptive name,
+                                                    see \`libinput list-kernel-devices\`)
+                             this is usefull for remote activating in DESKTOP/WM
+
+OPTIONS TO USE WITH PLAY
+  -d, --delay NUMBER         set replay time in ms (default 12ms)
+  -m, --mirror               mirror replay timing exactly as it was recorded
+  -n, --nplay NUMBER         set number of replays
+  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
+                             directly in script, use this flag if you're on X11.
+
+  -y, --ydotool PATH         due to how pkexec works we can't read YDOTOOL_SOCKET
+                             directly in script, use this flag if you're on Wayland.
+                             you don't need to use this if path to your 
+                             YDOTOOL_SOCKET=/tmp/.ydotool_socket 
+
+[NAME] is optional, if not specified it will create files using mktemp.
+You can find unnamed macros in /tmp/*.macro.
+If you accidentally recorded wrong macro without specifying NAME don't worry,
+Run \`macro -R\`, this will autodelete last unnamed recorded file.
+"
+}
+
+# TODO: maybe in future add something like this
+#       to prevent stop sequence from interupting replay
+#       this way we could remove separate stops for record/replay
+#-P, --pattern PATTERN      same as --sequence
+#-S, --sequence SEQUENCE    ignore playing certain key sequence;
+#                           e.g. '133 58' will not play sequence
+#                           NOTE: x11 key ids are ID+8,
+#                                 keycodes in xev are already incremented by 8
+
+timemills=12
+repeat_count=1
+ismirroring=false
+device_name=
+
+macro_record() {
+  file="$1"
+  file=${file:="$(mktemp --suff=.macro)"}
+  printf "recording macro, press Ctrl+C to save..."
+  libinput record "$device_name" --show-keycodes "$file"
+}
+
+macro_play() {
+  file="$1"
+  if ! file=${file:="$(ls -t /tmp/*.macro | head -n1)"}; then
+    printf "no macro found, record macro first"
+    exit 2
+  fi
+
+  if [ "$ismirroring" = "true" ]; then
+    for i in $(seq 1 "$repeat_count"); do
+      libinput replay --replay-after=0 "$file"
+    done
+    exit
+  fi
+
+  ignore_lines=$(grep -n 'events:' "$file" | grep -o '[0-9]\+')
+  for i in $(seq 1 "$repeat_count"); do
+    keystroke=""
+
+    tail -n+"$ignore_lines" "$file" | grep 'EV_KEY' | while read -r line; do
+      keystatus=$(echo "$line" | grep -o '[0-2]$')
+
+      key=$(echo "$line" | cut -d',' -f4)
+      if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+        xydotool="xdotool key --delay"
+
+        if [ -z "$keystroke" ] && [ "$keystatus" -eq 1 ]; then
+          keystroke=$((key + 8))
+        elif [ "$keystatus" -eq 1 ]; then
+          keystroke="$keystroke+$((key + 8))"
+        elif [ "$keystatus" -eq 0 ]; then
+          # execute final combo before deleting it
+          # splitting is here intentional
+          $xydotool "$timemills" $keystroke
+          keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
+        fi
+      else
+        export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
+        xydotool="ydotool key --key-delay"
+        if [ "$keystatus" -eq 1 ]; then
+          keystroke="$keystroke $key:1"
+        elif [ "$keystatus" -eq 0 ]; then
+          keystroke="$keystroke $key:0"
+          # splitting is here intentional
+          $xydotool "$timemills" $keystroke
+          keystroke=$(printf "%s" "$keystroke" | sed "s/ *$key:1//")
+        fi
+      fi
+
+      if [ "$keystatus" -eq 2 ]; then
+        export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
+        # splitting is here intentional
+        $xydotool "$timemills" $keystroke
+      fi
+    done
+  done
+}
+
+macro_remove() {
+  file="$1"
+  file=${file:="$(ls -t /tmp/*.macro | head -n1)"}
+  rm "$file"
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -d | --delay)
+    [ $# -lt 2 ] && {
+      printf "missing argument!"
+      exit 1
+    }
+    timemills="$2"
+    shift 2
+    ;;
+  -D | --device)
+    [ $# -lt 2 ] && {
+      printf "missing argument!"
+      exit 1
+    }
+    device_name=$(libinput list-kernel-devices | grep -i "$2" | cut -f1 | tr -d ":")
+    shift 2
+    ;;
+  -h | --help)
+    print_help
+    exit $?
+    ;;
+  -m | --mirror)
+    ismirroring=true
+    shift
+    ;;
+  -n | --repeat)
+    [ $# -lt 2 ] && {
+      printf "missing argument!"
+      exit 1
+    }
+    repeat_count="$2"
+    shift 2
+    ;;
+  -p | --play)
+    ! [ $# -lt 2 ] && echo "$2" | grep -v '^-' && macroname="$2" && shift
+    isplay=true
+    shift
+    ;;
+  -r | --record)
+    ! [ $# -lt 2 ] && echo "$2" | grep -v '^-' && macroname="$2" && shift
+    isrecord=true
+    shift
+    ;;
+  -R | --remove)
+    macroname="$2"
+    macro_remove "$macroname"
+    exit $?
+    ;;
+  -s | --stop-record)
+    pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
+    if [ -n $pid ]; then
+      kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
+    fi
+    #pkill -P "$(pgrep keystrokes | head -n1)"
+    exit $?
+    ;;
+  -S | --stop-replay)
+    pid=$(pgrep -a keystrokes | grep '\-p' | cut -d' ' -f1)
+    if [ -n $pid ]; then
+      kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
+    fi
+    exit $?
+    ;;
+  -v | --version)
+    print_version
+    exit $?
+    ;;
+  -x | --x11)
+    XDG_SESSION_TYPE="x11"
+    shift
+    ;;
+  -y | --ydotool)
+    [ $# -lt 2 ] && {
+      printf "missing argument!"
+      exit 1
+    }
+    YDOTOOL_SOCKET="$2"
+    shift 2
+    ;;
+  *)
+    print_help
+    exit 1
+    ;;
+  esac
+done
+
+if [ "$isrecord" = true ]; then
+  if [ -z "$device_name" ]; then
+    printf "Please specify device -D, --device"
+    exit 1
+  fi
+  macro_record "$macroname"
+elif [ "$isplay" = true ]; then
+  macro_play "$macroname"
+else
+  print_help
+  exit 1
+fi

@@ -1,0 +1,8 @@
+// Allow any user in the 'wheel' group to run
+// without entering a password multiple times.
+polkit.addRule(function (action, subject) {
+  if (action.id === "com.github.keystrokes" && subject.isInGroup("wheel")) {
+  //if (action.id == "com.github.keystrokes") {
+    return polkit.Result.YES;
+  }
+});
