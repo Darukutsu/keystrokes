@@ -93,7 +93,7 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 ## Video
 
-<video src="https://github.com/Darukutsu/keystrokes/blob/master/images/video.mp4" width="640" height="480" controls></video>
+[!(how it works...)](https://github.com/Darukutsu/keystrokes/blob/master/images/video.mp4)
 
 ## Alternatives
 
