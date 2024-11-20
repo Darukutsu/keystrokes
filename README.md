@@ -52,6 +52,11 @@ You can use sudo, doas too.
 
 If you encounter issues when executing your binds via keyboard such as `Refusing to render service to dead parents`, make a wrapper:
 
+```
+#!/bin/sh
+pkexec keystrokes "$@"
+```
+
 ## Usage
 
 ```
