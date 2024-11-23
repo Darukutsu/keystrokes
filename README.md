@@ -111,5 +111,6 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 ## Todo
 
-- [ ] tty support maybe?!
+- [ ] proper tty support maybe?!
+- [ ] better mouse support?
 - [ ] issues with repeating, `keydown super+ctrl+q; keyup super` will result in pressing `CTRL+Q`
