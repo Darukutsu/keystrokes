@@ -70,17 +70,19 @@ macro_play() {
   fi
 
   if [ "$ismirroring" = "true" ]; then
-    for i in $(seq 1 "$repeat_count"); do
+    for _ in $(seq 1 "$repeat_count"); do
       libinput replay --replay-after=0 "$file"
     done
     exit
   fi
 
-  ignore_lines=$(grep -n 'events:' "$file" | grep -o '[0-9]\+')
-  for i in $(seq 1 "$repeat_count"); do
+  # TODO: different parsing for mouse
+  ignore_lines=$(sed -n '/events:/=' "$file")
+  for _ in $(seq 1 "$repeat_count"); do
     keystroke=""
 
     tail -n+"$ignore_lines" "$file" | grep 'EV_KEY' | while read -r line; do
+      #sed -n "/EV_KEY.*\d/ $ignore_lines p" "$file" | while read -r line; do
       keystatus=$(echo "$line" | grep -o '[0-2]$')
 
       key=$(echo "$line" | cut -d',' -f4)
@@ -140,7 +142,7 @@ while [ $# -gt 0 ]; do
       printf "missing argument!"
       exit 1
     }
-    device_name=$(libinput list-kernel-devices | grep -i "$2" | cut -f1 | tr -d ":")
+    device_name=$(libinput list-kernel-devices | grep -i "$2" | tail -n1 | cut -f1 | tr -d ":")
     shift 2
     ;;
   -h | --help)
