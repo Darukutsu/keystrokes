@@ -71,7 +71,7 @@ macro_play() {
 
   if [ "$ismirroring" = "true" ]; then
     for _ in $(seq 1 "$repeat_count"); do
-      libinput replay --replay-after=0 "$file"
+      libinput replay --once --replay-after=0 "$file"
     done
     exit
   fi
