@@ -42,11 +42,10 @@ Run \`macro -R\`, this will autodelete last unnamed recorded file.
 }
 
 # TODO: maybe in future add something like this
-#       to prevent stop sequence from interupting replay
+#       to prevent 'for example' stop sequence from interupting replay
 #       this way we could remove separate stops for record/replay
 #-P, --pattern PATTERN      same as --sequence
 #-S, --sequence SEQUENCE    ignore playing certain key sequence;
-#                           e.g. '133 58' will not play sequence
 #                           NOTE: x11 key ids are ID+8,
 #                                 keycodes in xev are already incremented by 8
 
@@ -78,11 +77,13 @@ macro_play() {
 
   # TODO: different parsing for mouse
   ignore_lines=$(sed -n '/events:/=' "$file")
-  for _ in $(seq 1 "$repeat_count"); do
-    keystroke=""
+  keys_parsed=$(mktemp --suff=.macro-parsed)
+  tail -n+"$ignore_lines" "$file" | grep 'EV_KEY' >"$keys_parsed"
 
-    tail -n+"$ignore_lines" "$file" | grep 'EV_KEY' | while read -r line; do
-      #sed -n "/EV_KEY.*\d/ $ignore_lines p" "$file" | while read -r line; do
+  for _ in $(seq 1 "$repeat_count"); do
+    while read -r line; do
+      # this is because later in EOF it creates crap in grep
+      line=$(echo "$line" | tr -d '-')
       keystatus=$(echo "$line" | grep -o '[0-2]$')
 
       key=$(echo "$line" | cut -d',' -f4)
@@ -98,6 +99,18 @@ macro_play() {
           # splitting is here intentional
           $xydotool "$timemills" $keystroke
           keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
+          # forward check for multiple zeros following to prevent from unintentional repetitions
+          continue=0
+          while read -r nextline; do
+            echo "$nextline" | grep -q '[1-2]$' && break
+            key=$(echo "$nextline" | cut -d',' -f4)
+            keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
+            continue=$((continue + 1))
+          done <<EOF
+          $(tail -n+$(($(grep -nF "$line" "$keys_parsed" | grep -o '^[0-9]*') + 1)) "$keys_parsed")
+EOF
+
+          [ $continue -ne 0 ] && continue $continue
         fi
       else
         export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
@@ -112,13 +125,16 @@ macro_play() {
         fi
       fi
 
+      # holding key is just like repeating already existing keystroke
       if [ "$keystatus" -eq 2 ]; then
         export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
         # splitting is here intentional
         $xydotool "$timemills" $keystroke
       fi
-    done
+    done <"$keys_parsed"
   done
+
+  rm "$keys_parsed"
 }
 
 macro_remove() {
