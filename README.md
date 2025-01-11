@@ -74,7 +74,6 @@ Short options take same arguments as their long counterpart.
 OPTIONS TO USE WITH RECORD
   -D, --device NAME          pick recording device (either path or descriptive name,
                                                     see `libinput list-kernel-devices`)
-                             this is usefull for remote activating in DESKTOP/WM
 
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
@@ -111,6 +110,7 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 ## Todo
 
-- [ ] proper tty support maybe?!
-- [ ] better mouse support?
-- [ ] issues with repeating, `keydown super+ctrl+q; keyup super` will result in pressing `CTRL+Q`
+- [ ] proper gamepad support?
+- [ ] proper mouse support?
+- [ ] proper tty support?
+- [ ] potentional issues with keys which upstate wasn't recorded... e.g. my kill-sequence `keydown super+ctrl+q; keyup super` will result in pressing `CTRL+Q`
