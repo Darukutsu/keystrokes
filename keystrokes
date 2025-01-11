@@ -18,9 +18,8 @@ Short options take same arguments as their long counterpart.
   -v, --version              display version and exit
 
 OPTIONS TO USE WITH RECORD
-  -D, --device NAME          pick recording device (either path or descriptive name,
+  -D, --device NAME          pick recording devices (either path or descriptive name,
                                                     see \`libinput list-kernel-devices\`)
-                             this is usefull for remote activating in DESKTOP/WM
 
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
@@ -52,18 +51,18 @@ Run \`macro -R\`, this will autodelete last unnamed recorded file.
 timemills=12
 repeat_count=1
 ismirroring=false
-device_names=()
+device_names=""
 
 macro_record() {
   file="$1"
   file=${file:="$(mktemp --suff=.macro)"}
   printf "recording macro, press Ctrl+C to save..."
-  devices_string="${device_names[*]}"
-  libinput record $devices_string --show-keycodes "$file"
+  libinput record "$device_names" --show-keycodes "$file"
 }
 
 macro_play() {
   file="$1"
+  # shellcheck disable=2012
   if ! file=${file:="$(ls -t /tmp/*.macro | head -n1)"}; then
     printf "no macro found, record macro first"
     exit 2
@@ -98,6 +97,7 @@ macro_play() {
         elif [ "$keystatus" -eq 0 ]; then
           # execute final combo before deleting it
           # splitting is here intentional
+          # shellcheck disable=2086
           $xydotool "$timemills" $keystroke
           keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
           # forward check for multiple zeros following to prevent from unintentional repetitions
@@ -121,6 +121,7 @@ EOF
         elif [ "$keystatus" -eq 0 ]; then
           keystroke="$keystroke $key:0"
           # splitting is here intentional
+          # shellcheck disable=2086
           $xydotool "$timemills" $keystroke
           keystroke=$(printf "%s" "$keystroke" | sed "s/ *$key:1//")
         fi
@@ -130,6 +131,7 @@ EOF
       if [ "$keystatus" -eq 2 ]; then
         export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
         # splitting is here intentional
+        # shellcheck disable=2086
         $xydotool "$timemills" $keystroke
       fi
     done <"$keys_parsed"
@@ -140,6 +142,7 @@ EOF
 
 macro_remove() {
   file="$1"
+  # shellcheck disable=2012
   file=${file:="$(ls -t /tmp/*.macro | head -n1)"}
   rm "$file"
 }
@@ -162,7 +165,7 @@ while [ $# -gt 0 ]; do
       fi
       device_name=$(libinput list-kernel-devices | grep -i "$2" | tail -n1 | cut -f1 | tr -d ":")
       if [ -n "$device_name" ]; then
-        device_names+=("$device_name")
+        device_names="$device_names $device_name"
       else
         printf "Device '$2' not found!\n"
       fi
@@ -203,6 +206,7 @@ while [ $# -gt 0 ]; do
   -s | --stop-record)
     pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
     if [ -n $pid ]; then
+      # shellcheck disable=2046,2086
       kill -2 $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
     #pkill -P "$(pgrep keystrokes | head -n1)"
@@ -211,6 +215,7 @@ while [ $# -gt 0 ]; do
   -S | --stop-replay)
     pid=$(pgrep -a keystrokes | grep '\-p' | cut -d' ' -f1)
     if [ -n $pid ]; then
+      # shellcheck disable=2046,2086
       kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
     exit $?
@@ -239,8 +244,8 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$isrecord" = true ]; then
-  if [ ${#device_names[@]} -eq  0 ]; then
-    printf "Please specify at least one device with -D, --device"
+  if [ -z "$device_names" ]; then
+    printf "Please specify at least one device with -D, --device\n"
     exit 1
   fi
   macro_record "$macroname"
