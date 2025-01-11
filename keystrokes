@@ -57,7 +57,7 @@ macro_record() {
   file="$1"
   file=${file:="$(mktemp --suff=.macro)"}
   printf "recording macro, press Ctrl+C to save..."
-  libinput record "$device_names" --show-keycodes "$file"
+  libinput record $device_names --show-keycodes "$file"
 }
 
 macro_play() {
