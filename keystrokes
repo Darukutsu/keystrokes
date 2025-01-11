@@ -20,7 +20,6 @@ Short options take same arguments as their long counterpart.
 OPTIONS TO USE WITH RECORD
   -D, --device NAME          pick recording device (either path or descriptive name,
                                                     see \`libinput list-kernel-devices\`)
-                             this is usefull for remote activating in DESKTOP/WM
 
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
@@ -63,6 +62,7 @@ macro_record() {
 
 macro_play() {
   file="$1"
+  # shellcheck disable=2012
   if ! file=${file:="$(ls -t /tmp/*.macro | head -n1)"}; then
     printf "no macro found, record macro first"
     exit 2
@@ -97,6 +97,7 @@ macro_play() {
         elif [ "$keystatus" -eq 0 ]; then
           # execute final combo before deleting it
           # splitting is here intentional
+          # shellcheck disable=2086
           $xydotool "$timemills" $keystroke
           keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
           # forward check for multiple zeros following to prevent from unintentional repetitions
@@ -120,6 +121,7 @@ EOF
         elif [ "$keystatus" -eq 0 ]; then
           keystroke="$keystroke $key:0"
           # splitting is here intentional
+          # shellcheck disable=2086
           $xydotool "$timemills" $keystroke
           keystroke=$(printf "%s" "$keystroke" | sed "s/ *$key:1//")
         fi
@@ -129,6 +131,7 @@ EOF
       if [ "$keystatus" -eq 2 ]; then
         export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
         # splitting is here intentional
+        # shellcheck disable=2086
         $xydotool "$timemills" $keystroke
       fi
     done <"$keys_parsed"
@@ -139,6 +142,7 @@ EOF
 
 macro_remove() {
   file="$1"
+  # shellcheck disable=2012
   file=${file:="$(ls -t /tmp/*.macro | head -n1)"}
   rm "$file"
 }
@@ -194,7 +198,8 @@ while [ $# -gt 0 ]; do
     ;;
   -s | --stop-record)
     pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
-    if [ -n $pid ]; then
+    if [ -n "$pid" ]; then
+      # shellcheck disable=2046,2086
       kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
     #pkill -P "$(pgrep keystrokes | head -n1)"
@@ -202,7 +207,8 @@ while [ $# -gt 0 ]; do
     ;;
   -S | --stop-replay)
     pid=$(pgrep -a keystrokes | grep '\-p' | cut -d' ' -f1)
-    if [ -n $pid ]; then
+    if [ -n "$pid" ]; then
+      # shellcheck disable=2046,2086
       kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
     exit $?

@@ -1,0 +1,16 @@
+name: "check for posix and formatting"
+on:
+  - pull_request
+
+jobs:
+  sh-checker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Run the sh-checker
+        uses: luizm/action-sh-checker@master
+        env:
+          SHELLCHECK_OPTS: -s sh
+          SHFMT_OPTS: -i 2
+        #with:
+        #  sh_checker_comment: true
