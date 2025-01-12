@@ -18,8 +18,10 @@ Short options take same arguments as their long counterpart.
   -v, --version              display version and exit
 
 OPTIONS TO USE WITH RECORD
-  -D, --device NAME          pick recording device (either path or descriptive name,
+  -D, --device {NAME}        pick recording devices (either path or descriptive name,
                                                     see \`libinput list-kernel-devices\`)
+                             this flag can take multiple arguments as 
+                             you can specify multiple devices to record at same time
 
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
@@ -51,13 +53,15 @@ Run \`macro -R\`, this will autodelete last unnamed recorded file.
 timemills=12
 repeat_count=1
 ismirroring=false
-device_name=
+device_names=""
 
 macro_record() {
   file="$1"
   file=${file:="$(mktemp --suff=.macro)"}
   printf "recording macro, press Ctrl+C to save..."
-  libinput record "$device_name" --show-keycodes "$file"
+  # splitting is here intentional
+  # shellcheck disable=2086
+  libinput record $device_names --show-keycodes "$file"
 }
 
 macro_play() {
@@ -158,12 +162,19 @@ while [ $# -gt 0 ]; do
     shift 2
     ;;
   -D | --device)
-    [ $# -lt 2 ] && {
-      printf "missing argument!"
-      exit 1
-    }
-    device_name=$(libinput list-kernel-devices | grep -i "$2" | tail -n1 | cut -f1 | tr -d ":")
-    shift 2
+    while [ $# -gt 0 ]; do
+      if [ -z "$2" ] || echo "$2" | grep -q '^-'; then
+        shift
+        break
+      fi
+      device_name=$(libinput list-kernel-devices | grep -i "$2" | tail -n1 | cut -f1 | tr -d ":")
+      if [ -n "$device_name" ]; then
+        device_names="$device_names $device_name"
+      else
+        printf "Device '%s' not found!\n" "$2"
+      fi
+      shift
+    done
     ;;
   -h | --help)
     print_help
@@ -200,7 +211,7 @@ while [ $# -gt 0 ]; do
     pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
     if [ -n "$pid" ]; then
       # shellcheck disable=2046,2086
-      kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
+      kill -2 $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
     #pkill -P "$(pgrep keystrokes | head -n1)"
     exit $?
@@ -237,8 +248,8 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$isrecord" = true ]; then
-  if [ -z "$device_name" ]; then
-    printf "Please specify device -D, --device"
+  if [ -z "$device_names" ]; then
+    printf "Please specify at least one device with -D, --device\n"
     exit 1
   fi
   macro_record "$macroname"
