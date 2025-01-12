@@ -72,8 +72,10 @@ Short options take same arguments as their long counterpart.
   -v, --version              display version and exit
 
 OPTIONS TO USE WITH RECORD
-  -D, --device NAME          pick recording device (either path or descriptive name,
-                                                    see `libinput list-kernel-devices`)
+  -D, --device {NAME}        pick recording devices (either path or descriptive name,
+                                                    see \`libinput list-kernel-devices\`)
+                             this flag can take multiple arguments as
+                             you can specify multiple devices to record at same time
 
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
@@ -114,3 +116,8 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 - [ ] proper mouse support?
 - [ ] proper tty support?
 - [ ] potentional issues with keys which upstate wasn't recorded... e.g. my kill-sequence `keydown super+ctrl+q; keyup super` will result in pressing `CTRL+Q`
+
+##### Warning
+
+Currently you can record any device since we using libinput to record keystrokes, however since we haven't implemented new parsing for any other device than keyboard yet, you are limited to `keystrokes -p -m` option.
+Also you might experience weird issues with mouse sensitivity.

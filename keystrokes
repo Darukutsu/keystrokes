@@ -18,8 +18,10 @@ Short options take same arguments as their long counterpart.
   -v, --version              display version and exit
 
 OPTIONS TO USE WITH RECORD
-  -D, --device NAME          pick recording devices (either path or descriptive name,
+  -D, --device {NAME}        pick recording devices (either path or descriptive name,
                                                     see \`libinput list-kernel-devices\`)
+                             this flag can take multiple arguments as 
+                             you can specify multiple devices to record at same time
 
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
@@ -57,6 +59,8 @@ macro_record() {
   file="$1"
   file=${file:="$(mktemp --suff=.macro)"}
   printf "recording macro, press Ctrl+C to save..."
+  # splitting is here intentional
+  # shellcheck disable=2086
   libinput record $device_names --show-keycodes "$file"
 }
 
