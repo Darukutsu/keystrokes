@@ -159,7 +159,7 @@ while [ $# -gt 0 ]; do
     ;;
   -D | --device)
     while [ $# -gt 0 ]; do
-      if [[ -z "$2" || "$2" =~ ^- ]]; then
+      if [ -z "$2" ] || echo "$2" | grep -q '^-'; then
         shift
         break
       fi
@@ -167,7 +167,7 @@ while [ $# -gt 0 ]; do
       if [ -n "$device_name" ]; then
         device_names="$device_names $device_name"
       else
-        printf "Device '$2' not found!\n"
+        printf "Device '%s' not found!\n" "$2"
       fi
       shift
     done
@@ -205,7 +205,7 @@ while [ $# -gt 0 ]; do
     ;;
   -s | --stop-record)
     pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
-    if [ -n $pid ]; then
+    if [ -n "$pid" ]; then
       # shellcheck disable=2046,2086
       kill -2 $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
@@ -214,7 +214,7 @@ while [ $# -gt 0 ]; do
     ;;
   -S | --stop-replay)
     pid=$(pgrep -a keystrokes | grep '\-p' | cut -d' ' -f1)
-    if [ -n $pid ]; then
+    if [ -n "$pid" ]; then
       # shellcheck disable=2046,2086
       kill $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
