@@ -176,11 +176,11 @@ EOF
             fi
 
             if [ "$XDG_SESSION_TYPE" = "x11" ]; then
-              keystroke=$(yes "$((key + 8)) " | head -n"$keystroke_count" | tr -d '\n')
+              keystroke=$(seq "$keystroke_count" | sed "s/.*/$((key + 8))/" | tr '\n' ' ')
               # shellcheck disable=2086
               xdotool key --delay "$timemills" $keystroke
             else
-              keystroke=$(yes "$key:1 $key:0 " | head -n"$keystroke_count" | tr -d '\n')
+              keystroke=$(seq "$keystroke_count" | sed "s/.*/$key:1 $key:0/" | tr '\n' ' ')
               # shellcheck disable=2086
               ydotool key --key-delay "$timemills" $keystroke
             fi
