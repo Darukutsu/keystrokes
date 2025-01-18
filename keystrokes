@@ -132,9 +132,13 @@ EOF
   # remove keys which upstate wasn't recorded before playing
   # last keys without keyup can be freely deleted
   while read -r line; do
+    action_type=$(echo "$line" | cut -d' ' -f4 | tr -d ',')
     key_state=$(echo "$line" | cut -d' ' -f8 | tr -d '}')
-    [ "$key_state" = "released" ] && break
-    sed -i "/$line/d" "$actions_parsed"
+
+    if [ "$action_type" = "KEYBOARD_KEY" ]; then
+      [ "$key_state" = "released" ] && break
+      sed -i "/$line/d" "$actions_parsed"
+    fi
   done <<EOF
 $(tail "$actions_parsed" | tac)
 EOF
