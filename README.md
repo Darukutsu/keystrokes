@@ -37,6 +37,7 @@ X11:
 Wayland:
 
 - [ydotool](https://github.com/ReimuNotMoe/ydotool)
+- [slurp](https://github.com/emersion/slurp)
 
 ## Installation
 
@@ -108,10 +109,11 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 
 | Name                                                                                         | Description                             | Protocol     | Language |
 | :------------------------------------------------------------------------------------------- | :-------------------------------------- | :----------- | :------- |
-| [xnee](https://xnee.wordpress.com/)                                                          | distributed keyboard and mouse solution | X11          | C        |
+| [autokey](https://github.com/autokey/autokey)                                                | glorified xdotool                       | X11+Wayland? | Python   |
 | [atbswp](https://github.com/RMPR/atbswp)                                                     | keyboard and mouse                      | X11+Wayland? | Python   |
-| [xmacroIncludingDelayCapturing](https://github.com/Ortega-Dan/xmacroIncludingDelayCapturing) | keyboard and mouse with record delay    | X11          | C        |
 | libinput+python-evdev                                                                        | record & replay any `/dev/input`        | X11+Wayland  | C+Python |
+| [xnee](https://xnee.wordpress.com/)                                                          | distributed keyboard and mouse solution | X11          | C        |
+| [xmacroIncludingDelayCapturing](https://github.com/Ortega-Dan/xmacroIncludingDelayCapturing) | keyboard and mouse with record delay    | X11          | C        |
 
 ## Todo
 
