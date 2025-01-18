@@ -2,7 +2,7 @@
 #set -x
 
 print_version() {
-  printf "1.0"
+  printf "2.0"
 }
 
 print_help() {
@@ -23,6 +23,9 @@ OPTIONS TO USE WITH RECORD
                              this flag can take multiple arguments as 
                              you can specify multiple devices to record at same time
 
+  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
+                             directly in script, use this flag if you're on X11.
+
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
   -m, --mirror               mirror replay timing exactly as it was recorded
@@ -32,7 +35,7 @@ OPTIONS TO USE WITH PLAY
 
   -y, --ydotool PATH         due to how pkexec works we can't read YDOTOOL_SOCKET
                              directly in script, use this flag if you're on Wayland.
-                             you don't need to use this if path to your 
+                             You don't need to use this if path to your 
                              YDOTOOL_SOCKET=/tmp/.ydotool_socket 
 
 [NAME] is optional, if not specified it will create files using mktemp.
@@ -59,9 +62,22 @@ macro_record() {
   file="$1"
   file=${file:="$(mktemp --suff=.macro)"}
   printf "recording macro, press Ctrl+C to save..."
-  # splitting is here intentional
+
+  # TODO: find way to check for wayland without env
+  # shellcheck disable=2046,2015
+  if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+    eval $(xdotool getmouselocation --shell)
+  else
+    sleep 0.1 && ydotool click 0xC0 &
+    read -r X Y <<EOF
+$(slurp -p -f "%X %Y" | tr ' ' '\n')
+EOF
+  fi
+
   # shellcheck disable=2086
-  libinput record $device_names --show-keycodes "$file"
+  libinput record $device_names --show-keycodes --with-libinput "$file"
+
+  printf "MOUSE_START_POSITION %s %s\n" "$X" "$Y" >>"$file"
 }
 
 macro_play() {
@@ -73,75 +89,200 @@ macro_play() {
   fi
 
   if [ "$ismirroring" = "true" ]; then
+    corrected_file=$(mktemp --suff=.macro-parsed)
+    sed -e "/{time.*}\|libinput.*\|- {type.*\|capabilities:.*\|MOUSE_START_POSITION/d" \
+      -e "/ndevices:/a libinput:" \
+      "$file" >"$corrected_file"
+
     for _ in $(seq 1 "$repeat_count"); do
-      libinput replay --once --replay-after=0 "$file"
+      # we could maybe rework our algorithm and get rid of python-libevdev dependency
+      libinput replay --once --replay-after=0 "$corrected_file"
     done
+
+    rm "$corrected_file"
     exit
   fi
 
-  # TODO: different parsing for mouse
-  ignore_lines=$(sed -n '/events:/=' "$file")
-  keys_parsed=$(mktemp --suff=.macro-parsed)
-  tail -n+"$ignore_lines" "$file" | grep 'EV_KEY' >"$keys_parsed"
+  # TODO: find way to check for wayland without env
+  #seat=$(grep -o "seat[0-9]+" "$file")
+  #session=$(loginctl show-session "$(loginctl | grep "$seat" | tr -s ' ' | cut -d' ' -f2)" -p Type | cut -d'=' -f2)
+  #XDG_SESSION_TYPE="$session"
 
-  for _ in $(seq 1 "$repeat_count"); do
-    while read -r line; do
-      # this is because later in EOF it creates crap in grep
-      line=$(echo "$line" | tr -d '-')
-      keystatus=$(echo "$line" | grep -o '[0-2]$')
+  # see `man kbdrate` for tty - we don't do this yet
+  # see `man xset` for X11
+  # in wayland compositors you need to specify this, there isn't universal option
+  if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+    read -r kbdelay kbrate <<EOF
+$(xset q | grep -e "auto repeat delay:" | grep -o "[0-9]*" | tr '\n' ' ')
+EOF
+    kbdelay=$(echo "$kbdelay"/1000 | bc -l)
+  else
+    #uid=$(loginctl | grep "$seat" | tr -s ' ' | cut -d' ' -f3)
+    #/run/user/$uid/.ydotool_socket
+    export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
+    # TODO: wayland variable rate capture
+    kbdelay=250
+    kbrate=30
+    kbdelay=$(echo "$kbdelay"/1000 | bc -l)
+  fi
 
-      key=$(echo "$line" | cut -d',' -f4)
-      if [ "$XDG_SESSION_TYPE" = "x11" ]; then
-        xydotool="xdotool key --delay"
+  actions_parsed=$(mktemp --suff=.macro-parsed)
+  grep -o "{time.*}" "$file" | sort -k2 -n >"$actions_parsed"
 
-        if [ -z "$keystroke" ] && [ "$keystatus" -eq 1 ]; then
-          keystroke=$((key + 8))
-        elif [ "$keystatus" -eq 1 ]; then
-          keystroke="$keystroke+$((key + 8))"
-        elif [ "$keystatus" -eq 0 ]; then
-          # execute final combo before deleting it
-          # splitting is here intentional
-          # shellcheck disable=2086
-          $xydotool "$timemills" $keystroke
-          keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
-          # forward check for multiple zeros following to prevent from unintentional repetitions
-          continue=0
-          while read -r nextline; do
-            echo "$nextline" | grep -q '[1-2]$' && break
-            key=$(echo "$nextline" | cut -d',' -f4)
-            keystroke=$(printf "%s" "$keystroke" | sed "s/+\?$((key + 8))//")
-            continue=$((continue + 1))
-          done <<EOF
-          $(tail -n+$(($(grep -nF "$line" "$keys_parsed" | grep -o '^[0-9]*') + 1)) "$keys_parsed")
+  # remove keys which upstate wasn't recorded before playing
+  # last keys without keyup can be freely deleted
+  while read -r line; do
+    key_state=$(echo "$line" | cut -d' ' -f8 | tr -d '}')
+    [ "$key_state" = "released" ] && break
+    sed -i "/$line/d" "$actions_parsed"
+  done <<EOF
+$(tail "$actions_parsed" | tac)
 EOF
 
-          [ $continue -ne 0 ] && continue $continue
-        fi
-      else
-        export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
-        xydotool="ydotool key --key-delay"
-        if [ "$keystatus" -eq 1 ]; then
-          keystroke="$keystroke $key:1"
-        elif [ "$keystatus" -eq 0 ]; then
-          keystroke="$keystroke $key:0"
-          # splitting is here intentional
-          # shellcheck disable=2086
-          $xydotool "$timemills" $keystroke
-          keystroke=$(printf "%s" "$keystroke" | sed "s/ *$key:1//")
-        fi
-      fi
+  X=$(grep "MOUSE_START_POSITION" "$file" | cut -d' ' -f2)
+  Y=$(grep "MOUSE_START_POSITION" "$file" | cut -d' ' -f3)
 
-      # holding key is just like repeating already existing keystroke
-      if [ "$keystatus" -eq 2 ]; then
-        export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
-        # splitting is here intentional
-        # shellcheck disable=2086
-        $xydotool "$timemills" $keystroke
+  for _ in $(seq 1 "$repeat_count"); do
+
+    # set cursor starting position everytime
+    if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+      xdotool mousemove "$X" "$Y"
+    else
+      ydotool mousemove --absolute "$X" "$Y"
+    fi
+
+    while read -r line; do
+      action_type=$(echo "$line" | cut -d' ' -f4 | tr -d ',')
+
+      if [ "$action_type" = "KEYBOARD_KEY" ]; then
+        key_state=$(echo "$line" | cut -d' ' -f8 | tr -d '}')
+        key=$(echo "$line" | cut -d' ' -f6 | tr -d ',')
+
+        if [ "$key_state" = "pressed" ]; then
+          # check if next line contains key/button released(doesn't need to be same key),
+          # if it does then compare time differences between those and
+          # acording to equation add this many letters to `xdotool key`
+          # if there isn't keyreleased but anything else, add current press as `xdotool keydown`
+          nextline=$(sed -n "$(($(sed -n "/$line/=" "$actions_parsed") + 1))p" "$actions_parsed")
+          nextline_key_state=$(echo "$nextline" | cut -d' ' -f8 | tr -d '}')
+
+          if [ "$nextline_key_state" = "released" ]; then
+            starttime=$(echo "$line" | cut -d' ' -f2 | tr -d ',')
+            endtime=$(echo "$nextline" | cut -d' ' -f2 | tr -d ',')
+
+            keystroke_count=$(printf "%d" "$(echo "($endtime - $starttime - $kbdelay) * $kbrate" | bc)" 2>/dev/null)
+            if [ "$keystroke_count" -lt 1 ]; then
+              keystroke_count=1
+            fi
+
+            if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+              keystroke=$(yes "$((key + 8)) " | head -n"$keystroke_count" | tr -d '\n')
+              # shellcheck disable=2086
+              xdotool key --delay "$timemills" $keystroke
+            else
+              keystroke=$(yes "$key:1 $key:0 " | head -n"$keystroke_count" | tr -d '\n')
+              # shellcheck disable=2086
+              ydotool key --key-delay "$timemills" $keystroke
+            fi
+          else
+            # maybe replace delay with sleep instead
+            if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+              xdotool keydown "$((key + 8))"
+            else
+              ydotool key --key-delay "$timemills" "$key:1"
+            fi
+          fi
+        elif [ "$key_state" = "released" ]; then
+          # redundant in some cases but shouldn't be problem
+          if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+            xdotool keyup "$((key + 8))"
+          else
+            ydotool key --key-delay "$timemills" "$key:0"
+          fi
+        fi
+      elif [ "$action_type" = "POINTER_MOTION" ]; then
+        move_x=$(echo "$line" | sed -E "s/[^0-9.-]+/ /g" | cut -d' ' -f5)
+        move_y=$(echo "$line" | sed -E "s/[^0-9.-]+/ /g" | cut -d' ' -f6)
+
+        # add delay maybe
+        if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+          xdotool mousemove_relative -- "$move_x" "$move_y"
+        else
+          ydotool mousemove -- "$move_x" "$move_y"
+        fi
+      elif [ "$action_type" = "POINTER_AXIS" ]; then
+        # TODO: wheel
+        continue
+      elif [ "$action_type" = "POINTER_BUTTON" ]; then
+        # TODO: something better for determining button pressed
+        button_state=$(echo "$line" | cut -d' ' -f8 | tr -d ',')
+        button=$(echo "$line" | cut -d' ' -f6 | tr -d ',')
+
+        #x w
+        #1 1 272 - left
+        #3 2 273 - right
+        #2 3 274 - scrollwheel
+        #0 5 275 - backleft (8)
+        #0 6 276 - frontleft (9)
+
+        # add delay maybe
+        if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+          case "$button" in
+          272) button=1 ;;
+          273) button=3 ;;
+          274) button=2 ;;
+          275) button=0 ;;
+          276) button=0 ;;
+          *) button=0 ;;
+          esac
+
+          if [ "$button_state" = "pressed" ]; then
+            xdotool mousedown "$button"
+          elif [ "$button_state" = "released" ]; then
+            xdotool mouseup "$button"
+          fi
+        else
+          #case "$button" in
+          #272) button=1 ;;
+          #273) button=2 ;;
+          #274) button=3 ;;
+          #275) button=4 ;;
+          #276) button=5 ;;
+          #*) button=0 ;;
+          #esac
+          ## bit 0x41 down
+          ## bit 0x81 up
+          if [ "$button_state" = "pressed" ]; then
+            ydotool key "$button:1"
+            #ydotool mousedown "$(printf "%x" $((button + 0x40)))"
+          elif [ "$button_state" = "released" ]; then
+            ydotool key "$button:0"
+            #ydotool mouseup "$(printf "%x" $((button + 0x80)))"
+          fi
+        fi
       fi
-    done <"$keys_parsed"
+    done <"$actions_parsed"
   done
 
-  rm "$keys_parsed"
+  # reset all meta keys(just in case) such as alt,super,shift,ctrl
+  while read -r key; do
+    if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+      xdotool keyup $((key + 8))
+    else
+      ydotool key "key:0"
+    fi
+  done <<EOF
+125
+126
+29
+97
+56
+100
+42
+54
+EOF
+
+  rm "$actions_parsed"
 }
 
 macro_remove() {
@@ -213,7 +354,6 @@ while [ $# -gt 0 ]; do
       # shellcheck disable=2046,2086
       kill -2 $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
     fi
-    #pkill -P "$(pgrep keystrokes | head -n1)"
     exit $?
     ;;
   -S | --stop-replay)

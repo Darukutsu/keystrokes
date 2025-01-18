@@ -77,6 +77,9 @@ OPTIONS TO USE WITH RECORD
                              this flag can take multiple arguments as
                              you can specify multiple devices to record at same time
 
+  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
+                             directly in script, use this flag if you're on X11.
+
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
   -m, --mirror               mirror replay timing exactly as it was recorded
@@ -86,13 +89,13 @@ OPTIONS TO USE WITH PLAY
 
   -y, --ydotool PATH         due to how pkexec works we can't read YDOTOOL_SOCKET
                              directly in script, use this flag if you're on Wayland.
-                             you don't need to use this if path to your
+                             You don't need to use this if path to your
                              YDOTOOL_SOCKET=/tmp/.ydotool_socket
 
 [NAME] is optional, if not specified it will create files using mktemp.
 You can find unnamed macros in /tmp/*.macro.
 If you accidentally recorded wrong macro without specifying NAME don't worry,
-Run `macro -R`, this will autodelete last unnamed recorded file.
+Run \`macro -R\`, this will autodelete last unnamed recorded file.
 ```
 
 See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/master/sxhkd/mode_macro) in sxhkd.
@@ -113,11 +116,11 @@ See my dotfiles for [usage example](https://github.com/Darukutsu/dotfiles/blob/m
 ## Todo
 
 - [ ] proper gamepad support?
-- [ ] proper mouse support?
+- [x] proper mouse support?
 - [ ] proper tty support?
-- [ ] potentional issues with keys which upstate wasn't recorded... e.g. my kill-sequence `keydown super+ctrl+q; keyup super` will result in pressing `CTRL+Q`
+- [x] fix potentional issues with keys which upstate wasn't recorded... e.g. my kill-sequence `keydown super+ctrl+q; keyup super` will result in pressing `CTRL+Q`
 
 ##### Warning
 
-Currently you can record any device since we using libinput to record keystrokes, however since we haven't implemented new parsing for any other device than keyboard yet, you are limited to `keystrokes -p -m` option.
+Currently you can record any device since we using libinput to record keystrokes, however since we haven't implemented parsing for any other device, except keyboard and mouse, you are limited to `keystrokes -p -m` option.
 Also you might experience weird issues with mouse sensitivity.
