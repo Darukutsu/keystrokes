@@ -29,6 +29,7 @@ as many times you want.
 - [libinput](https://gitlab.freedesktop.org/libinput/libinput)
 - [polkit](https://github.com/polkit-org/polkit)
 - [python-libevdev](https://gitlab.freedesktop.org/libevdev/python-libevdev) (to be able to mirror replay)
+- bc
 
 X11:
 
@@ -37,26 +38,16 @@ X11:
 Wayland:
 
 - [ydotool](https://github.com/ReimuNotMoe/ydotool)
-- [slurp](https://github.com/emersion/slurp)
+- [slurp](https://github.com/emersion/slurp) (for getting current mouse position)
 
 ## Installation
 
-**To use put:**\
-[`keystrokes`](https://github.com/Darukutsu/keystrokes/blob/master/keystrokes) in `/usr/bin/keystrokes`\
-[`com.github.keystrokes.policy`](https://github.com/Darukutsu/keystrokes/blob/master/com.github.keystrokes.policy) in `/usr/share/polkit-1/rules.d/com.github.keystrokes.policy`\
-[`com.github.keystrokes.rules`](https://github.com/Darukutsu/keystrokes/blob/master/com.github.keystrokes.rules) in `/usr/share/polkit-1/rules.d/com.github.keystrokes.rules`
-
-NOTE: symlinks don't work with polkit
+```
+curl https://github.com/Darukutsu/keystrokes/raw/refs/heads/master/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+```
 
 This tool directly uses `/dev/input/event...`, so using `pkexec` we're getting root permissions.
 You can use sudo, doas too.
-
-If you encounter issues when executing your binds via keyboard such as `Refusing to render service to dead parents`, make a wrapper:
-
-```
-#!/bin/sh
-pkexec keystrokes "$@"
-```
 
 ## Usage
 
@@ -78,20 +69,10 @@ OPTIONS TO USE WITH RECORD
                              this flag can take multiple arguments as
                              you can specify multiple devices to record at same time
 
-  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
-                             directly in script, use this flag if you're on X11.
-
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
   -m, --mirror               mirror replay timing exactly as it was recorded
   -n, --nplay NUMBER         set number of replays
-  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
-                             directly in script, use this flag if you're on X11.
-
-  -y, --ydotool PATH         due to how pkexec works we can't read YDOTOOL_SOCKET
-                             directly in script, use this flag if you're on Wayland.
-                             You don't need to use this if path to your
-                             YDOTOOL_SOCKET=/tmp/.ydotool_socket
 
 [NAME] is optional, if not specified it will create files using mktemp.
 You can find unnamed macros in /tmp/*.macro.
