@@ -2,7 +2,7 @@
 #set -x
 
 print_version() {
-  printf "2.0"
+  printf "3.0"
 }
 
 print_help() {
@@ -23,20 +23,10 @@ OPTIONS TO USE WITH RECORD
                              this flag can take multiple arguments as 
                              you can specify multiple devices to record at same time
 
-  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
-                             directly in script, use this flag if you're on X11.
-
 OPTIONS TO USE WITH PLAY
   -d, --delay NUMBER         set replay time in ms (default 12ms)
   -m, --mirror               mirror replay timing exactly as it was recorded
   -n, --nplay NUMBER         set number of replays
-  -x, --x11                  due to how pkexec works we can't read XDG_SESSION_TYPE
-                             directly in script, use this flag if you're on X11.
-
-  -y, --ydotool PATH         due to how pkexec works we can't read YDOTOOL_SOCKET
-                             directly in script, use this flag if you're on Wayland.
-                             You don't need to use this if path to your 
-                             YDOTOOL_SOCKET=/tmp/.ydotool_socket 
 
 [NAME] is optional, if not specified it will create files using mktemp.
 You can find unnamed macros in /tmp/*.macro.
@@ -63,7 +53,6 @@ macro_record() {
   file=${file:="$(mktemp --suff=.macro)"}
   printf "recording macro, press Ctrl+C to save..."
 
-  # TODO: find way to check for wayland without env
   # shellcheck disable=2046,2015
   if [ "$XDG_SESSION_TYPE" = "x11" ]; then
     eval $(xdotool getmouselocation --shell)
@@ -74,8 +63,7 @@ $(slurp -p -f "%X %Y" | tr ' ' '\n')
 EOF
   fi
 
-  # shellcheck disable=2086
-  libinput record $device_names --show-keycodes --with-libinput "$file"
+  pkexec /usr/local/share/keystrokes/keystrokes-libinput "$device_names" "$file"
 
   printf "MOUSE_START_POSITION %s %s\n" "$X" "$Y" >>"$file"
 }
@@ -103,11 +91,6 @@ macro_play() {
     exit
   fi
 
-  # TODO: find way to check for wayland without env
-  #seat=$(grep -o "seat[0-9]+" "$file")
-  #session=$(loginctl show-session "$(loginctl | grep "$seat" | tr -s ' ' | cut -d' ' -f2)" -p Type | cut -d'=' -f2)
-  #XDG_SESSION_TYPE="$session"
-
   # see `man kbdrate` for tty - we don't do this yet
   # see `man xset` for X11
   # in wayland compositors you need to specify this, there isn't universal option
@@ -117,9 +100,6 @@ $(xset q | grep -e "auto repeat delay:" | grep -o "[0-9]*" | tr '\n' ' ')
 EOF
     kbdelay=$(echo "$kbdelay"/1000 | bc -l)
   else
-    #uid=$(loginctl | grep "$seat" | tr -s ' ' | cut -d' ' -f3)
-    #/run/user/$uid/.ydotool_socket
-    export YDOTOOL_SOCKET="$YDOTOOL_SOCKET"
     # TODO: wayland variable rate capture
     kbdelay=250
     kbrate=30
@@ -353,11 +333,7 @@ while [ $# -gt 0 ]; do
     exit $?
     ;;
   -s | --stop-record)
-    pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
-    if [ -n "$pid" ]; then
-      # shellcheck disable=2046,2086
-      kill -2 $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
-    fi
+    pkexec /usr/local/share/keystrokes/keystrokes-libinput --kill
     exit $?
     ;;
   -S | --stop-replay)
@@ -371,18 +347,6 @@ while [ $# -gt 0 ]; do
   -v | --version)
     print_version
     exit $?
-    ;;
-  -x | --x11)
-    XDG_SESSION_TYPE="x11"
-    shift
-    ;;
-  -y | --ydotool)
-    [ $# -lt 2 ] && {
-      printf "missing argument!"
-      exit 1
-    }
-    YDOTOOL_SOCKET="$2"
-    shift 2
     ;;
   *)
     print_help

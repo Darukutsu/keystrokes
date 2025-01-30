@@ -1,0 +1,18 @@
+#!/bin/sh
+
+if [ "$1" = "-k" ] || [ "$1" = "--kill" ]; then
+  pid=$(pgrep -a keystrokes | grep '\-r' | cut -d' ' -f1)
+  if [ -n "$pid" ]; then
+    # shellcheck disable=2046,2086
+    kill -2 $(pstree -p $pid | grep -o '[0-9]*' | tail -n1)
+  fi
+  exit $?
+fi
+
+device_names="$1"
+file="$2"
+
+chown root "$file"
+chmod 660 "$file"
+# shellcheck disable=2086
+libinput record $device_names --show-keycodes --with-libinput "$file"
