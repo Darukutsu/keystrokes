@@ -43,7 +43,7 @@ Wayland:
 ## Installation
 
 ```
-curl https://github.com/Darukutsu/keystrokes/raw/refs/heads/master/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+curl https://raw.githubusercontent.com/Darukutsu/keystrokes/refs/heads/env-access/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
 This tool directly uses `/dev/input/event...`, so using `pkexec` we're getting root permissions.
